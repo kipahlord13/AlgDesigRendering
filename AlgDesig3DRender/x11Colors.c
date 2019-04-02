@@ -4,7 +4,7 @@
  */
 
 #include <X11/Xlib.h>
-
+//nadine wuz here
 #include <stdio.h>
 #include <stdlib.h>		/* getenv(), etc. */
 #include <unistd.h>		/* sleep(), etc.  */
