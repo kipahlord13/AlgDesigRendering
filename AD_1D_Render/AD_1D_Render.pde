@@ -9,6 +9,8 @@ Point[] points = {new Point(camX, camY), new Point(450, 55), new Point(570, 265)
 Point screen0 = new Point(300, 200);
 Point screen1 = new Point(400, 300);
 
+//nice comment, does it work?
+
 final Line screenSpace = new Line(screen0, screen1);
 
 Line[] lines = {new Line(points[1], points[2]), new Line(points[3], points[4])};
@@ -157,7 +159,7 @@ private class Line {
   }
   public Point intersect(Line that) {
     float xF, yF;
-    xF = (this.p1.y + (that.m * that.p1.x) - (that.p1.y + (this.m * this.p1.x))) / (that.m - this.m); 
+    xF = (this.p1.y + (that.m * that.p1.x) - (that.p1.y + (this.m * this.p1.x))) / (that.m - this.m);
     yF = this.p1.y + this.m * (xF - this.p1.x);
     return new Point(xF, yF);
   }
