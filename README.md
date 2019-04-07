@@ -13,7 +13,7 @@ Timeless timeline:
   a. 	Projection
   b. 	Rasterization
   c. 	Visibility Problem
-  d. 	Draw sequntially with X11
+  d. 	Draw sequentially with X11
 4.  Multi-threading in C for X11 drawing
 5.  Design of maze geometry
 6.  Move/ rotate camera with keyboard or mouse movements
