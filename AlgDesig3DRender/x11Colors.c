@@ -9,6 +9,21 @@
 #include <stdlib.h>		/* getenv(), etc. */
 #include <unistd.h>		/* sleep(), etc.  */
 
+#define WIDTH 800
+#define HEIGHT 600
+
+Display* display;		/* pointer to X Display structure.           */
+int screen_num;		/* number of screen to place the window on.  */
+Window win;			/* pointer to the newly created window.      */
+char *display_name;  /* address of the X display.      */
+GC gc;			/* GC (graphics context) used for drawing    */
+      /*  in our window.			     */
+Colormap screen_colormap;     /* color map to use for allocating colors.   */
+XColor red, brown, blue, yellow, green;
+      /* used for allocation of the given color    */
+      /* map entries.                              */
+Status rc;			/* return status of various Xlib functions.  */
+
 /*
  * function: create_simple_window. Creates a window with a white background
  *           in the given size.
@@ -38,14 +53,11 @@ create_simple_window(Display* display, int width, int height, int x, int y)
   /* make the window actually appear on the screen. */
   XMapWindow(display, win);
 
-  /* flush all pending requests to the X server. */
-  XFlush(display);
-
   return win;
 }
 
 GC
-create_gc(Display* display, Window win, int reverse_video)
+create_gc(Display* display, Window win)
 {
   GC gc;				/* handle of newly created GC.  */
   unsigned long valuemask = 0;		/* which values in 'values' to  */
@@ -62,15 +74,7 @@ create_gc(Display* display, Window win, int reverse_video)
 	fprintf(stderr, "XCreateGC: \n");
   }
 
-  /* allocate foreground and background colors for this GC. */
-  if (reverse_video) {
-    XSetForeground(display, gc, WhitePixel(display, screen_num));
-    XSetBackground(display, gc, BlackPixel(display, screen_num));
-  }
-  else {
-    XSetForeground(display, gc, BlackPixel(display, screen_num));
-    XSetBackground(display, gc, WhitePixel(display, screen_num));
-  }
+  XSetBackground(display, gc, WhitePixel(display, screen_num));
 
   /* define the style of lines that will be drawn using this GC. */
   XSetLineAttributes(display, gc,
@@ -82,87 +86,7 @@ create_gc(Display* display, Window win, int reverse_video)
   return gc;
 }
 
-void
-main(int argc, char* argv[])
-{
-  Display* display;		/* pointer to X Display structure.           */
-  int screen_num;		/* number of screen to place the window on.  */
-  Window win;			/* pointer to the newly created window.      */
-  unsigned int display_width,
-               display_height;	/* height and width of the X display.        */
-  unsigned int width, height;	/* height and width for the new window.      */
-  char *display_name = getenv("DISPLAY");  /* address of the X display.      */
-  GC gc;			/* GC (graphics context) used for drawing    */
-				/*  in our window.			     */
-  Colormap screen_colormap;     /* color map to use for allocating colors.   */
-  XColor red, brown, blue, yellow, green;
-				/* used for allocation of the given color    */
-				/* map entries.                              */
-  Status rc;			/* return status of various Xlib functions.  */
-
-  /* open connection with the X server. */
-  display = XOpenDisplay(display_name);
-  if (display == NULL) {
-    fprintf(stderr, "%s: cannot connect to X server '%s'\n",
-            argv[0], display_name);
-    exit(1);
-  }
-
-  /* get the geometry of the default screen for our display. */
-  screen_num = DefaultScreen(display);
-  display_width = DisplayWidth(display, screen_num);
-  display_height = DisplayHeight(display, screen_num);
-
-  /* make the new window occupy 1/9 of the screen's size. */
-  width = (display_width / 3);
-  height = (display_height / 3);
-  printf("window width - '%d'; height - '%d'\n", width, height);
-
-  /* create a simple window, as a direct child of the screen's   */
-  /* root window. Use the screen's white color as the background */
-  /* color of the window. Place the new window's top-left corner */
-  /* at the given 'x,y' coordinates.                             */
-  win = create_simple_window(display, width, height, 0, 0);
-
-  /* allocate a new GC (graphics context) for drawing in the window. */
-  gc = create_gc(display, win, 0);
-  XSync(display, False);
-
-  /* get access to the screen's color map. */
-  screen_colormap = DefaultColormap(display, DefaultScreen(display));
-
-  /* allocate the set of colors we will want to use for the drawing. */
-  rc = XAllocNamedColor(display, screen_colormap, "red", &red, &red);
-  if (rc == 0) {
-    fprintf(stderr, "XAllocNamedColor - failed to allocated 'red' color.\n");
-    exit(1);
-  }
-  rc = XAllocNamedColor(display, screen_colormap, "brown", &brown, &brown);
-  if (rc == 0) {
-    fprintf(stderr, "XAllocNamedColor - failed to allocated 'brown' color.\n");
-    exit(1);
-  }
-  rc = XAllocNamedColor(display, screen_colormap, "blue", &blue, &blue);
-  if (rc == 0) {
-    fprintf(stderr, "XAllocNamedColor - failed to allocated 'blue' color.\n");
-    exit(1);
-  }
-  rc = XAllocNamedColor(display, screen_colormap, "yellow", &yellow, &yellow);
-  if (rc == 0) {
-    fprintf(stderr, "XAllocNamedColor - failed to allocated 'yellow' color.\n");
-    exit(1);
-  }
-  rc = XAllocNamedColor(display, screen_colormap, "green", &green, &green);
-  if (rc == 0) {
-    fprintf(stderr, "XAllocNamedColor - failed to allocated 'green' color.\n");
-    exit(1);
-  }
-
-
-
-  /* flush all pending requests to the X server. */
-  XFlush(display);
-
+void mainLoop() {
   XEvent e;
 
   XSelectInput(display, win, ExposureMask | KeyPressMask);
@@ -180,64 +104,39 @@ main(int argc, char* argv[])
            XDrawPoint(display, win ,gc, 100 + i, 100 + j);
          }
        }
-
-        // //XFillRectangle(d, w, DefaultGC(d, s), 20, 20, 10, 10);
-        // //XDrawString(d, w, DefaultGC(d, s), 10, 50, msg, strlen(msg));
-        //
-        // /* draw one pixel near each corner of the window */
-        // /* draw the pixels in a red color. */
-        // XSetForeground(display, gc, red.pixel);
-        // XDrawPoint(display, win, gc, 5, 5);
-        // XDrawPoint(display, win, gc, 5, height-5);
-        // XDrawPoint(display, win, gc, width-5, 5);
-        // XDrawPoint(display, win, gc, width-5, height-5);
-        //
-        // /* draw two intersecting lines, one horizontal and one vertical, */
-        // /* which intersect at point "50,100".                            */
-        // /* draw the line in a brown color. */
-        // XSetForeground(display, gc, brown.pixel);
-        // XDrawLine(display, win, gc, 50, 0, 50, 200);
-        // XDrawLine(display, win, gc, 0, 100, 200, 100);
-        //
-        // /* now use the XDrawArc() function to draw a circle whose diameter */
-        // /* is 30 pixels, and whose center is at location '50,100'.         */
-        // /* draw the arc in a blue color. */
-        // XSetForeground(display, gc, blue.pixel);
-        // XDrawArc(display, win, gc, 50-(30/2), 100-(30/2), 30, 30, 0, 360*64);
-        //
-        // {
-        //   XPoint points[] = {
-        //     {0, 0},
-        //     {15, 15},
-        //     {0, 15},
-        //     {0, 0}
-        //   };
-        //   int npoints = sizeof(points)/sizeof(XPoint);
-        //
-        //   /* draw a small triangle at the top-left corner of the window. */
-        //   /* the triangle is made of a set of consecutive lines, whose   */
-        //   /* end-point pixels are specified in the 'points' array.       */
-        //   /* draw the triangle in a yellow color. */
-        //   XSetForeground(display, gc, yellow.pixel);
-        //   XDrawLines(display, win, gc, points, npoints, CoordModeOrigin);
-        // }
-        //
-        // /* draw a rectangle whose top-left corner is at '120,150', its width is */
-        // /* 50 pixels, and height is 60 pixels.                                  */
-        // /* draw the rectangle in a black color. */
-        // XSetForeground(display, gc, BlackPixel(display, screen_num));
-        // XDrawRectangle(display, win, gc, 120, 150, 50, 60);
-        //
-        // /* draw a filled rectangle of the same size as above, to the left of the */
-        // /* previous rectangle.                                                   */
-        // /* draw the rectangle in a green color. */
-        // XSetForeground(display, gc, green.pixel);
-        // XFillRectangle(display, win, gc, 60, 150, 50, 60);
-
      }
      if (e.type == KeyPress)
         break;
   }
+}
+
+void
+main(int argc, char* argv[])
+{
+  display_name = getenv("DISPLAY");  /* address of the X display.      */
+
+  display = XOpenDisplay(display_name);
+
+  /* get the geometry of the default screen for our display. */
+  screen_num = DefaultScreen(display);
+
+  win = create_simple_window(display, WIDTH, HEIGHT, 0, 0);
+
+  /* allocate a new GC (graphics context) for drawing in the window. */
+  gc = create_gc(display, win);
+  XSync(display, False);
+
+  /* get access to the screen's color map. */
+  screen_colormap = DefaultColormap(display, DefaultScreen(display));
+
+  /* allocate the set of colors we will want to use for the drawing. */
+  XAllocNamedColor(display, screen_colormap, "red", &red, &red);
+  XAllocNamedColor(display, screen_colormap, "brown", &brown, &brown);
+  XAllocNamedColor(display, screen_colormap, "blue", &blue, &blue);
+  XAllocNamedColor(display, screen_colormap, "yellow", &yellow, &yellow);
+  XAllocNamedColor(display, screen_colormap, "green", &green, &green);
+
+  mainLoop();
 
   /* close the connection to the X server. */
   XCloseDisplay(display);

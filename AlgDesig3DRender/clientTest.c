@@ -20,7 +20,11 @@ void func(int sockfd)
         // write(sockfd, buff, sizeof(buff));
         bzero(buff, sizeof(buff));
         read(sockfd, buff, sizeof(buff));
-        printf("From Server : %s\n", buff);
+        printf("\nFrom Server : ");
+        for(int i = 0; i < MAX; i++) {
+          buff[i] -= 48;
+          printf("%d", buff[i]);
+        }
         if ((strncmp(buff, "exit", 4)) == 0) {
             printf("Client Exit...\n");
             break;
