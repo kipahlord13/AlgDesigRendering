@@ -6,7 +6,7 @@ Timeless timeline:
   c.	depth culling
   d. 	back-face culling?
   e. 	camera rotation
-2.  3D rendering background in C
+2.  3D rendering backend in C
   a. 	algebraic functions (intersections, cross products)
   b. 	structs (point, line)
 3.  Rendering pipeline in C

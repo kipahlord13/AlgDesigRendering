@@ -13,6 +13,8 @@ final Line screenSpace = new Line(screen0, screen1);
 
 Line[] lines = {new Line(points[1], points[2]), new Line(points[3], points[4])};
 
+float thetaRad = 0;
+
 void setup() {
   size(600, 600);
 }
@@ -20,10 +22,10 @@ void setup() {
 void draw() {
   background(255);
   changeColor(0);
-  ellipse(camX, camY, 10, 10);
-  line(camX, camY, 300, 0);
-  line(camX, camY, 600, 300);
-  line(300, 200, 400, 300);
+  ellipse(points[0].x, points[0].y, 10, 10);
+  line(points[0].x + (900 * sin(thetaRad)), points[0].y + (900 * cos(thetaRad)), points[0].x - (900 * sin(thetaRad)), points[0].y - (900 * cos(thetaRad)));
+  line(points[0].x + (900 * sin(thetaRad + (PI / 2))), points[0].y + (900 * cos(thetaRad + (PI / 2))), points[0].x - (900 * sin(thetaRad + (PI / 2))), points[0].y - (900 * cos(thetaRad + (PI / 2))));
+  line(screenSpace.p1.x, screenSpace.p1.y, screenSpace.p2.x, screenSpace.p2.y);
   changeColor(#0000FF);
   line(points[1].x, points[1].y, points[2].x, points[2].y);
   line(points[0].x, points[0].y, points[2].x, points[2].y);
@@ -44,6 +46,16 @@ void draw() {
   }
   int k = 0;
   for (Line l : lines) {
+    k++;
+    //cull lines outside 
+
+    if ((Point.cross(points[0], screenSpace.p1, l.p1) < 0 || Point.cross(points[0], screenSpace.p2, l.p1) > 0) &&
+      (Point.cross(points[0], screenSpace.p1, l.p2) < 0 || Point.cross(points[0], screenSpace.p2, l.p2) > 0)) continue;
+
+    //cull back face
+    if (Point.cross(points[0], l.p1, l.p2) < 0) continue;
+
+
     Point intersect = new Line(points[0], l.p1).intersect(screenSpace);
 
     int screenLoc = int((intersect.x - screenSpace.p1.x) / (screenSpace.p2.x - screenSpace.p1.x) * 100);
@@ -52,7 +64,12 @@ void draw() {
 
     int screenLoc2 = int((intersect2.x - screenSpace.p1.x) / (screenSpace.p2.x - screenSpace.p1.x) * 100);
 
-    for (int i = min(screenLoc, screenLoc2); i <= max(screenLoc, screenLoc2); i++) {
+    if (screenLoc2 < screenLoc) {
+      if (screenLoc <= 100) screenLoc2 = 100;
+      else screenLoc = 0;
+    }
+
+    for (int i = screenLoc; i <= screenLoc2; i++) {
       if (i < 0) i = 0;
       if (i >= colorBuffer.length) break;
       //calc z-value
@@ -60,23 +77,20 @@ void draw() {
       float yVal = screen1.y + ((screenSpace.p1.y - screenSpace.p2.y) * (100 - i)/100f);
       Point p = new Point(xVal, yVal);
       changeColor(0);
-      line(points[0].x, points[0].y, xVal, yVal);
-      float zVal = Float.MAX_VALUE;
-      Point p1 = l.intersect(new Line(points[0], p));
-      ellipse(p1.x, p1.y, 5, 5);
-      changeColor(#00FF00);
-      Line myLine = new Line(points[0], p);
-      line(l.p1.x, l.p1.y, l.p2.x, l.p2.y);
-      zVal = p.distance(l.intersect(new Line(points[0], p)));
 
+      float zVal = Float.MAX_VALUE;
+
+      changeColor(#00FF00);
+
+      zVal = points[0].distance(l.intersect(new Line(points[0], p)));
+      println(zVal);
       //assign new color if better z-value
-      if (zVal < zBuffer[i]) {
+      if (zVal < zBuffer[i] && zVal > 100) {
         if (zBuffer[i] != Float.MAX_VALUE);
         zBuffer[i] = zVal;
-        colorBuffer[i] = lineColors[k];
+        colorBuffer[i] = lineColors[k - 1];
       }
     }
-    k++;
   }
 
   //read from output buffer
@@ -105,21 +119,24 @@ void draw() {
       points[1].y ++;
     }
     if (key == 'j') {
-      points[0].x --;
+      thetaRad += .01;
     }
     if (key == 'l') {
-      points[0].x ++;
+      thetaRad -= .01;
     }
     if (key == 'i') {
-      points[0].y --;
+      points[0].y -= cos(thetaRad - (PI / 4));
+      points[0].x -= sin(thetaRad - (PI / 4));
     }
     if (key == 'k') {
-      points[0].y ++;
+      points[0].y += cos(thetaRad - (PI / 4));
+      points[0].x += sin(thetaRad - (PI / 4));
     }
-    screenSpace.p1.x = points[0].x;
-    screenSpace.p1.y = points[0].y - 100;
-    screenSpace.p2.x = points[0].x + 100;
-    screenSpace.p2.y = points[0].y;
+    screenSpace.p1.x = points[0].x + (100 * cos(thetaRad + (PI / 2)));
+    screenSpace.p1.y = points[0].y - (100 * sin(thetaRad + (PI / 2)));
+    screenSpace.p2.x = points[0].x + (100 * cos(thetaRad));
+    screenSpace.p2.y = points[0].y - (100 * sin(thetaRad));
+    screenSpace.reSlope();
     lines[0].reSlope();
   }
 
@@ -131,7 +148,7 @@ void changeColor(color c) {
   stroke(c);
 }
 
-private class Point {
+private static class Point {
   float x, y;
   public Point(float x, float y) {
     this.x = x;
@@ -139,6 +156,11 @@ private class Point {
   }
   public float distance(Point that) {
     return sqrt(pow(this.x - that.x, 2) + pow(this.y - that.y, 2));
+  }
+  //note that a is the shared point
+  public static float cross(Point a, Point b, Point c) {
+    float u1 = b.x - a.x, u2 = b.y - a.y, v1 = c.x - a.x, v2 = c.y - a.y;
+    return (u1 * v2) - (v1 * u2);
   }
 }
 
@@ -157,8 +179,21 @@ private class Line {
   }
   public Point intersect(Line that) {
     float xF, yF;
-    xF = (this.p1.y + (that.m * that.p1.x) - (that.p1.y + (this.m * this.p1.x))) / (that.m - this.m); 
-    yF = this.p1.y + this.m * (xF - this.p1.x);
+    if (this.m != Float.POSITIVE_INFINITY && that.m != Float.POSITIVE_INFINITY) {
+      xF = (this.p1.y + (that.m * that.p1.x) - (that.p1.y + (this.m * this.p1.x))) / (that.m - this.m);
+      yF = this.p1.y + this.m * (xF - this.p1.x);
+    } else {
+      if (this.m == Float.POSITIVE_INFINITY) {
+        if (that.m == Float.POSITIVE_INFINITY) {
+          return null;
+        }
+        xF = this.p1.x;
+        yF = that.p1.y + that.m * (xF - that.p1.x);
+      } else {
+        xF = that.p1.x;
+        yF = this.p1.y + this.m * (xF - this.p1.x);
+      }
+    }
     return new Point(xF, yF);
   }
   public void reSlope() {
