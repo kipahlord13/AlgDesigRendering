@@ -9,6 +9,8 @@ Point[] points = {new Point(camX, camY), new Point(450, 55), new Point(570, 265)
 Point screen0 = new Point(300, 200);
 Point screen1 = new Point(400, 300);
 
+//nice comment, does it work?
+
 final Line screenSpace = new Line(screen0, screen1);
 
 Line[] lines = {new Line(points[1], points[2]), new Line(points[3], points[4])};
@@ -47,7 +49,7 @@ void draw() {
   int k = 0;
   for (Line l : lines) {
     k++;
-    //cull lines outside 
+    //cull lines outside
 
     if ((Point.cross(points[0], screenSpace.p1, l.p1) < 0 || Point.cross(points[0], screenSpace.p2, l.p1) > 0) &&
       (Point.cross(points[0], screenSpace.p1, l.p2) < 0 || Point.cross(points[0], screenSpace.p2, l.p2) > 0)) continue;
