@@ -1,14 +1,14 @@
 # AlgDesigRendering
 Timeless timeline:
-1.  2D analog of 3D rendering as POC in Processing
-  a.	get pixels
-  b.	z-buffer
-  c.	depth culling
-  d. 	back-face culling?
-  e. 	camera rotation
-2.  3D rendering backend in C
-  a. 	algebraic functions (intersections, cross products)
-  b. 	structs (point, line)
+X.  2D analog of 3D rendering as POC in Processing
+  x.	get pixels
+  x.	z-buffer
+  x.	depth culling
+  x. 	back-face culling?
+  x. 	camera rotation
+X.  3D rendering backend in C
+  x. 	algebraic functions (intersections, cross products)
+  x. 	structs (point, line)
 3.  Rendering pipeline in C
   a. 	Projection
   b. 	Rasterization
