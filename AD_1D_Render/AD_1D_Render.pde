@@ -1,19 +1,22 @@
 color[] colorBuffer = new color[100];
 float[] zBuffer = new float[100];
 
-final color[] lineColors = {#0000FF, #FF0000};
+final color[] lineColors = {#FF0000, #00FF00, #0000FF};
 
 final float camX = 300, camY = 300;
 
-Point[] points = {new Point(camX, camY), new Point(450, 55), new Point(570, 265), new Point(450, 105), new Point(570, 165)};
+Point[] points = {new Point(camX, camY), new Point(380, 180), new Point(500, 180), new Point(400, 100), new Point(400, 200), new Point(500, 200), new Point(380, 100)};
 Point screen0 = new Point(300, 200);
 Point screen1 = new Point(400, 300);
 
-//nice comment, does it work?
+//nice comment, does it work?d
 
 final Line screenSpace = new Line(screen0, screen1);
 
-Line[] lines = {new Line(points[1], points[2]), new Line(points[3], points[4])};
+Line[] lines = {new Line(points[1], points[2]), 
+//                new Line(points[3], points[4]), 
+//                new Line(points[5], points[6])
+              };
 
 float thetaRad = 0;
 
@@ -28,18 +31,24 @@ void draw() {
   line(points[0].x + (900 * sin(thetaRad)), points[0].y + (900 * cos(thetaRad)), points[0].x - (900 * sin(thetaRad)), points[0].y - (900 * cos(thetaRad)));
   line(points[0].x + (900 * sin(thetaRad + (PI / 2))), points[0].y + (900 * cos(thetaRad + (PI / 2))), points[0].x - (900 * sin(thetaRad + (PI / 2))), points[0].y - (900 * cos(thetaRad + (PI / 2))));
   line(screenSpace.p1.x, screenSpace.p1.y, screenSpace.p2.x, screenSpace.p2.y);
-  changeColor(#0000FF);
+  changeColor(#FF0000);
   line(points[1].x, points[1].y, points[2].x, points[2].y);
   line(points[0].x, points[0].y, points[2].x, points[2].y);
   line(points[1].x, points[1].y, points[0].x, points[0].y);
   ellipse(points[1].x, points[1].y, 5, 5);
   ellipse(points[2].x, points[2].y, 5, 5);
-  changeColor(#FF0000);
-  line(points[3].x, points[3].y, points[4].x, points[4].y);
-  line(points[0].x, points[0].y, points[4].x, points[4].y);
-  line(points[3].x, points[3].y, points[0].x, points[0].y);
-  ellipse(points[3].x, points[3].y, 5, 5);
-  ellipse(points[4].x, points[4].y, 5, 5);
+  //changeColor(#00FF00);
+  //line(points[3].x, points[3].y, points[4].x, points[4].y);
+  //line(points[0].x, points[0].y, points[4].x, points[4].y);
+  //line(points[3].x, points[3].y, points[0].x, points[0].y);
+  //ellipse(points[3].x, points[3].y, 5, 5);
+  //ellipse(points[4].x, points[4].y, 5, 5);
+  //changeColor(#0000FF);
+  //line(points[5].x, points[5].y, points[6].x, points[6].y);
+  //line(points[0].x, points[0].y, points[6].x, points[6].y);
+  //line(points[5].x, points[5].y, points[0].x, points[0].y);
+  //ellipse(points[5].x, points[5].y, 5, 5);
+  //ellipse(points[6].x, points[6].y, 5, 5);
 
   //get line segment points
   for (int i = 0; i < 100; i++) {
@@ -49,8 +58,16 @@ void draw() {
   int k = 0;
   for (Line l : lines) {
     k++;
+    
+    //clamp lines outside
+    if(Point.cross(points[0], l.p1, screenSpace.p1) > 0) {
+      println(l.m);
+      println(new Line(points[0], screenSpace.p1).m);
+      l = new Line(l.intersect(new Line(points[0], screenSpace.p1)), l.p2);
+      println(l.p1.x + "   " + l.p1.y);
+    }
+    
     //cull lines outside
-
     if ((Point.cross(points[0], screenSpace.p1, l.p1) < 0 || Point.cross(points[0], screenSpace.p2, l.p1) > 0) &&
       (Point.cross(points[0], screenSpace.p1, l.p2) < 0 || Point.cross(points[0], screenSpace.p2, l.p2) > 0)) continue;
 
@@ -66,10 +83,11 @@ void draw() {
 
     int screenLoc2 = int((intersect2.x - screenSpace.p1.x) / (screenSpace.p2.x - screenSpace.p1.x) * 100);
 
-    if (screenLoc2 < screenLoc) {
-      if (screenLoc <= 100) screenLoc2 = 100;
-      else screenLoc = 0;
-    }
+    //if (screenLoc2 < screenLoc) {
+    // if (screenLoc <= 100) screenLoc2 = 100;
+    // else screenLoc = 0;
+    //}
+    
 
     for (int i = screenLoc; i <= screenLoc2; i++) {
       if (i < 0) i = 0;
@@ -83,9 +101,11 @@ void draw() {
       float zVal = Float.MAX_VALUE;
 
       changeColor(#00FF00);
+      
+      //println(screenLoc);
 
       zVal = points[0].distance(l.intersect(new Line(points[0], p)));
-      println(zVal);
+      //println(zVal);
       //assign new color if better z-value
       if (zVal < zBuffer[i] && zVal > 100) {
         if (zBuffer[i] != Float.MAX_VALUE);
@@ -172,12 +192,12 @@ private class Line {
   public Line(float x1, float y1, float x2, float y2) {
     p1 = new Point(x1, y1);
     p2 = new Point(x2, y2);
-    m = (y2 - y1) / (x2 - x1);
+    reSlope();
   }
   public Line(Point p1, Point p2) {
     this.p1 = p1;
     this.p2 = p2;
-    m = (p2.y - p1.y) / (p2.x - p1.x);
+    reSlope();
   }
   public Point intersect(Line that) {
     float xF, yF;
@@ -200,5 +220,6 @@ private class Line {
   }
   public void reSlope() {
     m = (p2.y - p1.y) / (p2.x - p1.x);
+    if(m == Float.NEGATIVE_INFINITY) m = Float.POSITIVE_INFINITY;
   }
 }
