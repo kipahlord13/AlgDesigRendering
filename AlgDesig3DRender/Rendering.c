@@ -1,4 +1,5 @@
-//compile with gcc Rendering.c -o Rendering -lm
+//compile with gcc Rendering.c -o Rendering -lm -lX11 -lpthread
+//compile for debugger: gcc -g Rendering.c -o Rendering -lm -lX11 -lpthread
 
 
 #include <stdio.h>
@@ -7,10 +8,15 @@
 #include <X11/Xlib.h>
 #include <string.h>
 #include <sys/param.h>
+#include <sys/time.h>
+#include <unistd.h>
+#include <float.h>
+#include <pthread.h>
 
 #define SCREEN_WIDTH 600
 #define SCREEN_HEIGHT 600
-#define NUM_TRIS 4
+#define NUM_TRIS 14
+#define WHITE_PIXEL 16777215
 
 typedef struct {
   float x;
@@ -28,9 +34,21 @@ typedef struct {
   Point* p1;
   Point* p2;
   Point* p3;
-  float d;
   Point normalVector;
 } Plane;
+
+pthread_t xdrawThread;
+pthread_mutex_t pixelLock;
+
+struct timeval tv;
+
+Display *d;
+Window w;
+XEvent e;
+int s;
+
+int animCounter;
+char verbose;
 
 Point camera = {0, 0, 0};
 
@@ -42,22 +60,36 @@ Point screenPoints[4] = {
 };
 Plane screenSpace = {&screenPoints[0], &screenPoints[1], &screenPoints[2]};
 
+Plane frustumTop = {&camera, &screenPoints[0], &screenPoints[2]};
+Plane frustumBot = {&camera, &screenPoints[3], &screenPoints[1]};
+Plane frustumRight = {&camera, &screenPoints[2], &screenPoints[3]};
+Plane frustumLeft = {&camera, &screenPoints[1], &screenPoints[0]};
+
 //0 gets black
 //1 gets white
-char pixels[SCREEN_HEIGHT][SCREEN_WIDTH];
+int pixels[SCREEN_HEIGHT][SCREEN_WIDTH];
+int drawPixels[SCREEN_HEIGHT][SCREEN_WIDTH];
+
+float zBuf[SCREEN_HEIGHT][SCREEN_WIDTH];
 
 short int tris[NUM_TRIS * 3] = {
-  0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11
+  0,  1,  2,       3,  4,  5,
+  6,  7,  8,       9,  10, 11,
+  12, 13, 14,      15, 16, 17,
+  18, 19, 20,      21, 22, 23,
+  24, 25, 26,      27, 28, 29,
+  30, 31, 32,      33, 34, 35,
+  36, 37, 38,      39, 40, 41
 };
 
-Point verticies[NUM_TRIS * 3] = {
-  {4, -1, 2},
-  {4, -3, 2},
-  {2, -2, 2 - 1.732},
+Point vertexes[NUM_TRIS * 3] = {
+  {9, -7.5, -5},
+  {9, -7.5, -7},
+  {9, 7.5, -7},
 
-  {6, 1, 1},
-  {3, 2, 1},
-  {3, 1, 2},
+  {9, 7.5, -7},
+  {9, 7.5, -5},
+  {9, -7.5, -5},
 
   {8, -6, -6},
   {10, -6, -6},
@@ -65,13 +97,60 @@ Point verticies[NUM_TRIS * 3] = {
 
   {8, -8, -6},
   {8, -6, -6},
-  {10, -8, -6}
+  {10, -8, -6},
+
+  {8, -3, -6},
+  {10, -3, -6},
+  {10, -5, -6},
+
+  {8, -5, -6},
+  {8, -3, -6},
+  {10, -5, -6},
+
+  {8, -0, -6},
+  {10, -0, -6},
+  {10, -2, -6},
+
+  {8, -2, -6},
+  {8, 0, -6},
+  {10, -2, -6},
+
+  {8, 3, -6},
+  {10, 3, -6},
+  {10, 1, -6},
+
+  {8, 1, -6},
+  {8, 3, -6},
+  {10, 1, -6},
+
+  {8, 6, -6},
+  {10, 6, -6},
+  {10, 4, -6},
+
+  {8, 4, -6},
+  {8, 6, -6},
+  {10, 4, -6},
+
+  {8, 9, -6},
+  {10, 9, -6},
+  {10, 7, -6},
+
+  {8, 7, -6},
+  {8, 9, -6},
+  {10, 7, -6},
 };
 
 Plane planes[NUM_TRIS];
 
+long long timeInMilliseconds(void) {
+    gettimeofday(&tv,NULL);
+    return (((long long)tv.tv_sec)*1000)+(tv.tv_usec/1000);
+}
 
-
+long long timeInMicroseconds(void) {
+  gettimeofday(&tv, NULL);
+  return tv.tv_usec;
+}
 
 void cross(Point* p1, Point* p2, Point* p3, Point* vectorOut) {
   Point v1, v2;
@@ -91,19 +170,21 @@ float cross2D(Point* p1, Point* p2, Point* p3) {
   return ((p2->x - p1->x) * (p3->y - p1->y)) - ((p2->y - p1->y) * (p3->x - p1->x));
 }
 
+float dot(Point* v1, Point* v2) {
+  return (v1->x * v2->x) +
+         (v1->y * v2->y) +
+         (v1->z * v2->z);
+}
+
 //upwards of the plane is when 1,2,3 are in clockwise order
 void calcNormal(Plane* p) {
   cross(p->p1, p->p3, p->p2, &p->normalVector);
-  p->d = (p->p1->x * p->normalVector.x) + (p->p1->y * p->normalVector.y) + (p->p1->z * p->normalVector.z);
-
 }
 
 void calcLineVector(Line* l) {
   l->vector.x = l->p2->x - l->p1->x;
   l->vector.y = l->p2->y - l->p1->y;
   l->vector.z = l->p2->z - l->p1->z;
-  printf("lineVector: <%.2f, %.2f, %.2f>\n", l->vector.x, l->vector.y, l->vector.z);
-
 }
 
 void intersect(Plane* plane, Line* line, Point* pOut) {
@@ -115,12 +196,25 @@ void intersect(Plane* plane, Line* line, Point* pOut) {
                    (plane->normalVector.y * (plane->p1->y - line->p1->y)) +
                    (plane->normalVector.z * (plane->p1->z - line->p1->z)));
   distFromStart /= dot;
-  printf("%f\n", distFromStart);
 
   pOut->x = line->p1->x + (line->vector.x * distFromStart);
   pOut->y = line->p1->y + (line->vector.y * distFromStart);
   pOut->z = line->p1->z + (line->vector.z * distFromStart);
-  printf("point: (%.2f, %.2f, %.2f)\n", pOut->x, pOut->y, pOut->z);
+}
+
+float dist(Point* p1, Point* p2) {
+  return sqrt(((p1->x - p2->x) * (p1->x - p2->x)) + ((p1->y - p2->y) * (p1->y - p2->y)) + ((p1->z - p2->z) * (p1->z - p2->z)));
+}
+
+int buildColor(double red, double green, double blue) {
+    return(
+        (((int)(red*255)%256)<<16)+
+        (((int)(green*255)%256)<<8)+
+        (((int)(blue*255)%256)));
+}
+
+void pVector(Point* p) {
+  printf("screenSpace: <%.2f, %.2f, %.2f>\n", p->x, p->y, p->z);
 }
 
 void testFunctions() {
@@ -165,21 +259,20 @@ void testFunctions() {
 
 void calcPlanes() {
   calcNormal(&screenSpace);
+  calcNormal(&frustumTop);
+  calcNormal(&frustumBot);
+  calcNormal(&frustumRight);
+  calcNormal(&frustumLeft);
 
   for(int i = 0; i < NUM_TRIS; i++) {
-    planes[i].p1 = &verticies[3 * i];
-    planes[i].p2 = &verticies[(3 * i) + 1];
-    planes[i].p3 = &verticies[(3 * i) + 2];
+    planes[i].p1 = &vertexes[3 * i];
+    planes[i].p2 = &vertexes[(3 * i) + 1];
+    planes[i].p3 = &vertexes[(3 * i) + 2];
     calcNormal(&planes[i]);
   }
 }
 
 int setupX11() {
-  Display *d;
-  Window w;
-  XEvent e;
-  int s;
-
   d = XOpenDisplay(NULL);
   if (d == NULL) {
      fprintf(stderr, "Cannot open display\n");
@@ -191,63 +284,66 @@ int setupX11() {
                           BlackPixel(d, s), WhitePixel(d, s));
   XSelectInput(d, w, ExposureMask | KeyPressMask);
   XMapWindow(d, w);
-
-  while (1) {
-     XNextEvent(d, &e);
-     if (e.type == Expose) {
-       for(int i = 0; i < SCREEN_HEIGHT; i++) {
-         for(int j = 0; j < SCREEN_WIDTH; j++) {
-           if(pixels[i][j] == 1) {
-             XDrawPoint(d, w, DefaultGC(d, s), i, j);
-           }
-         }
-       }
-     }
-     if (e.type == KeyPress)
-        break;
-  }
-
-  XCloseDisplay(d);
   return 0;
 }
 
+void setFarWhite() {
+  for(int i = 0; i < SCREEN_WIDTH; i++) {
+    for(int j = 0; j < SCREEN_HEIGHT; j++) {
+      pixels[i][j] = WHITE_PIXEL;
+      zBuf[i][j] = FLT_MAX;
+    }
+  }
+}
 
-int main() {
+void renderLoop() {
   calcPlanes();
-  printf("screenSpace: <%.2f, %.2f, %.2f>\n", screenSpace.normalVector.x, screenSpace.normalVector.y, screenSpace.normalVector.z);
-  //begin raster loop
+
   float uMin = screenPoints[2].y;
   float uMax = screenPoints[0].y;
   float vMin = screenPoints[3].y;
   float vMax = screenPoints[1].y;
   float uDiff = uMax - uMin;
   float vDiff = vMax - vMin;
+  int count = 0;
   for(int i = 0; i < NUM_TRIS; i++) {
-    printf("Triangle number %d\n", i);
+    //check polygon facing direction
+    //check that normal vector dot product is greater than zero
+    if((planes[i].normalVector.x * screenSpace.normalVector.x) +
+       (planes[i].normalVector.y * screenSpace.normalVector.y) +
+       (planes[i].normalVector.z * screenSpace.normalVector.z) > 0) continue;
+
+    //check all three points within viewing
+    char pointsOut = 3;
+    for(int j = 0; j < 3; j++) {
+      Point distToScreenSpace = {vertexes[3 * i + j].x - camera.x, vertexes[3 * i + j].y - camera.y, vertexes[3 * i + j].z - camera.z};
+      if(dot(&distToScreenSpace, &frustumTop.normalVector) > 0 ||
+         dot(&distToScreenSpace, &frustumBot.normalVector) > 0 ||
+         dot(&distToScreenSpace, &frustumRight.normalVector) > 0 ||
+         dot(&distToScreenSpace, &frustumLeft.normalVector) > 0) pointsOut--;
+    }
+    if(!pointsOut) continue;
+
+
+
     Point inter1;
-    Line ray = {&camera, &verticies[3 * i]};
+    Line ray = {&camera, &vertexes[3 * i]};
     calcLineVector(&ray);
     intersect(&screenSpace, &ray, &inter1);
     Point inter2;
-    Line ray2 = {&camera, &verticies[3 * i + 1]};
+    Line ray2 = {&camera, &vertexes[3 * i + 1]};
     calcLineVector(&ray2);
     intersect(&screenSpace, &ray2, &inter2);
     Point inter3;
-    Line ray3 = {&camera, &verticies[3 * i + 2]};
+    Line ray3 = {&camera, &vertexes[3 * i + 2]};
     calcLineVector(&ray3);
     intersect(&screenSpace, &ray3, &inter3);
     int p1y = floor((inter1.y - uMin) / vDiff * SCREEN_WIDTH);
-    int p1z = floor((inter1.z - vMin) / vDiff * SCREEN_WIDTH);
-    printf("%f ", inter1.y);
-    printf("%f\n", inter1.z);
+    int p1z = floor((inter1.z - vMin) / vDiff * SCREEN_HEIGHT);
     int p2y = floor((inter2.y - uMin) / vDiff * SCREEN_WIDTH);
-    int p2z = floor((inter2.z - vMin) / vDiff * SCREEN_WIDTH);
-    printf("%f ", inter2.y);
-    printf("%f\n", inter2.z);
+    int p2z = floor((inter2.z - vMin) / vDiff * SCREEN_HEIGHT);
     int p3y = floor((inter3.y - uMin) / vDiff * SCREEN_WIDTH);
-    int p3z = floor((inter3.z - vMin) / vDiff * SCREEN_WIDTH);
-    printf("%f ", inter3.y);
-    printf("%f\n", inter3.z);
+    int p3z = floor((inter3.z - vMin) / vDiff * SCREEN_HEIGHT);
 
     Point point1 = {p1y, p1z, 0};
     Point point2 = {p2y, p2z, 0};
@@ -267,18 +363,138 @@ int main() {
         if(cross2D(&point1, &point2, &pixel) >= 0 &&
            cross2D(&point2, &point3, &pixel) >= 0 &&
            cross2D(&point3, &point1, &pixel) >= 0) {
-          //printf("%.2f\n", cross2D(&point1, &point2, &pixel));
-          pixels[j][k] = 1;
+
+          float zVal;
+          Point intersection;
+          float realScreenY = screenPoints[3].y + ((float)(screenPoints[0].y - screenPoints[3].y) / SCREEN_HEIGHT * j);
+          float realScreenZ = screenPoints[3].z + ((float)(screenPoints[0].z - screenPoints[3].z) / SCREEN_WIDTH * k);
+          Point realScreenPoint = {1, realScreenY, realScreenZ};
+          Line pixelRay = {&camera, &realScreenPoint, {0, 0, 0}};
+          calcLineVector(&pixelRay);
+          intersect(&planes[i], &pixelRay, &intersection);
+          zVal = dist(&camera, &intersection);
+
+          if(zVal <= zBuf[j][k]) {
+            zBuf[j][k] = zVal;
+            float grad = (float)j / SCREEN_HEIGHT;
+            grad = MAX(0, MIN(1, grad));
+            pixels[j][k] = buildColor(grad, grad, grad);
+            if(i < 2) {
+              pixels[j][k] = buildColor(1, 0, 0);
+            }
+            count++;
+          }
         }
       }
     }
-
-    pixels[p1y][p1z] = 1;
-    pixels[p2y][p2z] = 1;
-    pixels[p3y][p3z] = 1;
   }
-  setupX11();
-  //testFunctions();
 
+  //printf("%d pixels given non-white\n", count);
+
+  pthread_mutex_lock(&pixelLock);
+  memcpy(&drawPixels, &pixels, sizeof(pixels));
+  pthread_mutex_unlock(&pixelLock);
+}
+
+void animate() {
+  // if(animCounter % 400 < 200) {
+  //   screenPoints[0].x -= .01;
+  //   screenPoints[1].x -= .01;
+  //   screenPoints[2].x -= .01;
+  //   screenPoints[3].x -= .01;
+  //   camera.x -= .01;
+  // } else {
+  //   screenPoints[0].x += .01;
+  //   screenPoints[1].x += .01;
+  //   screenPoints[2].x += .01;
+  //   screenPoints[3].x += .01;
+  //   camera.x += .01;
+  // }
+  // for(int i = 2; i < NUM_TRIS; i++) {
+  //   if(animCounter % 400 > 200 && 0) {
+  //     vertexes[3 * i + 0].z += animCounter % 200 < 100 ? .05 : -.05;
+  //     vertexes[3 * i + 1].z += animCounter % 200 < 100 ? .05 : -.05;
+  //     vertexes[3 * i + 2].z += animCounter % 200 < 100 ? .05 : -.05;
+  //   } else {
+  //     vertexes[3 * i + 0].z += animCounter % 200 < 100 ? .05 : -.05;
+  //     vertexes[3 * i + 1].z += animCounter % 200 < 100 ? .05 : -.05;
+  //     vertexes[3 * i + 2].z += animCounter % 200 < 100 ? .05 : -.05;
+  //   }
+  // }
+  //12 and 13
+  // vertexes[0 + 0].z += animCounter % 150 < 75 ? -.15 : .15;
+  // vertexes[0 + 1].z += animCounter % 150 < 75 ? -.15 : .15;
+  // vertexes[0 + 2].z += animCounter % 150 < 75 ? -.15 : .15;
+  // vertexes[3 + 0].z += animCounter % 150 < 75 ? -.15 : .15;
+  // vertexes[3 + 1].z += animCounter % 150 < 75 ? -.15 : .15;
+  // vertexes[3 + 2].z += animCounter % 150 < 75 ? -.15 : .15;
+  animCounter++;
+}
+
+void* mainLoop(void* in) {
+  int frameCount = 0;
+  long frameTime = 0, t = 0, avg = 0;
+  while (1) {
+    t = timeInMilliseconds();
+    //XNextEvent(d, &e);
+    if(XCheckMaskEvent(d, ExposureMask | KeyPressMask, &e)) {
+      if (e.type == KeyPress) {
+        break;
+      }
+    }
+    animate();
+    setFarWhite();
+    renderLoop();
+    frameTime = timeInMilliseconds() - t;
+    if(verbose == 1) {
+      frameCount++;
+      if(frameCount++ % 100 == 99)
+        printf("Frame number: %d \t Frame time: %ld", frameCount, frameTime);
+      avg += frameTime;
+      if(frameCount % 100 == 0)
+        printf("\t Avg: %ld  \tTotal: %ld\n", avg / frameCount, avg);
+    }
+    usleep(2000);
+  }
+  XCloseDisplay(d);
+}
+
+void* xDrawLoop(void* in) {
+  long drawStart = timeInMilliseconds();
+  while(1) {
+    pthread_mutex_lock(&pixelLock);
+    for(int i = 0; i < SCREEN_WIDTH; i++) {
+      for(int j = 0; j < SCREEN_HEIGHT; j++) {
+        int r = XSetForeground(d, DefaultGC(d, s), drawPixels[i][j]);
+        if(r != 1) printf("Bad set foreground %d\n", r);
+        r = XDrawPoint(d, w, DefaultGC(d, s), 599 - i, 599 - j);
+        if(r != 1) printf("Bad draw point %d\n", r);
+      }
+    }
+    pthread_mutex_unlock(&pixelLock);
+    //printf("draw time: %lld\n", timeInMicroseconds() - drawStart);
+    usleep(1666);
+  }
+}
+
+
+int main(int argc, char* argv[]) {
+  verbose = argc != 1;
+  XInitThreads();
+  setupX11();
+  for(int i = 0; i < SCREEN_WIDTH; i++) {
+    for(int j = 0; j < SCREEN_HEIGHT; j++) {
+      drawPixels[i][j] = WHITE_PIXEL;
+    }
+  }
+  if(pthread_mutex_init(&pixelLock, NULL)) {
+    printf("Error getting mutex lul");
+  }
+  if(pthread_create(&xdrawThread, NULL, xDrawLoop, NULL)) {
+    printf("Error making my thread, man!");
+    return 1;
+  }
+
+  mainLoop(NULL);
   return 0;
 }
