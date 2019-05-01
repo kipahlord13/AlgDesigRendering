@@ -58,6 +58,7 @@ Point screenPoints[4] = {
   {1, -1, 1},
   {1, -1, -1}
 };
+
 Plane screenSpace = {&screenPoints[0], &screenPoints[1], &screenPoints[2]};
 
 Plane frustumTop = {&camera, &screenPoints[0], &screenPoints[2]};
@@ -83,13 +84,13 @@ short int tris[NUM_TRIS * 3] = {
 };
 
 Point vertexes[NUM_TRIS * 3] = {
-  {9, -7.5, -5},
-  {9, -7.5, -7},
-  {9, 7.5, -7},
+  {9, -7.5, 2},
+  {9, -7.5, 0},
+  {9, 7.5, 0},
 
-  {9, 7.5, -7},
-  {9, 7.5, -5},
-  {9, -7.5, -5},
+  {9, 7.5, 0},
+  {9, 7.5, 2},
+  {9, -7.5, 2},
 
   {8, -6, -6},
   {10, -6, -6},
@@ -301,8 +302,8 @@ void renderLoop() {
 
   float uMin = screenPoints[2].y;
   float uMax = screenPoints[0].y;
-  float vMin = screenPoints[3].y;
-  float vMax = screenPoints[1].y;
+  float vMin = screenPoints[3].z;
+  float vMax = screenPoints[2].z;
   float uDiff = uMax - uMin;
   float vDiff = vMax - vMin;
   int count = 0;
@@ -368,7 +369,7 @@ void renderLoop() {
           Point intersection;
           float realScreenY = screenPoints[3].y + ((float)(screenPoints[0].y - screenPoints[3].y) / SCREEN_HEIGHT * j);
           float realScreenZ = screenPoints[3].z + ((float)(screenPoints[0].z - screenPoints[3].z) / SCREEN_WIDTH * k);
-          Point realScreenPoint = {1, realScreenY, realScreenZ};
+          Point realScreenPoint = {camera.x + 1, realScreenY, realScreenZ};
           Line pixelRay = {&camera, &realScreenPoint, {0, 0, 0}};
           calcLineVector(&pixelRay);
           intersect(&planes[i], &pixelRay, &intersection);
@@ -397,37 +398,48 @@ void renderLoop() {
 }
 
 void animate() {
-  // if(animCounter % 400 < 200) {
-  //   screenPoints[0].x -= .01;
-  //   screenPoints[1].x -= .01;
-  //   screenPoints[2].x -= .01;
-  //   screenPoints[3].x -= .01;
-  //   camera.x -= .01;
-  // } else {
-  //   screenPoints[0].x += .01;
-  //   screenPoints[1].x += .01;
-  //   screenPoints[2].x += .01;
-  //   screenPoints[3].x += .01;
-  //   camera.x += .01;
-  // }
-  // for(int i = 2; i < NUM_TRIS; i++) {
-  //   if(animCounter % 400 > 200 && 0) {
-  //     vertexes[3 * i + 0].z += animCounter % 200 < 100 ? .05 : -.05;
-  //     vertexes[3 * i + 1].z += animCounter % 200 < 100 ? .05 : -.05;
-  //     vertexes[3 * i + 2].z += animCounter % 200 < 100 ? .05 : -.05;
-  //   } else {
-  //     vertexes[3 * i + 0].z += animCounter % 200 < 100 ? .05 : -.05;
-  //     vertexes[3 * i + 1].z += animCounter % 200 < 100 ? .05 : -.05;
-  //     vertexes[3 * i + 2].z += animCounter % 200 < 100 ? .05 : -.05;
-  //   }
-  // }
+  if(animCounter % 400 < 200) {
+    screenPoints[0].x -= .05;
+    screenPoints[1].x -= .05;
+    screenPoints[2].x -= .05;
+    screenPoints[3].x -= .05;
+    camera.x -= .05;
+  } else {
+    screenPoints[0].x += .05;
+    screenPoints[1].x += .05;
+    screenPoints[2].x += .05;
+    screenPoints[3].x += .05;
+    camera.x += .05;
+  }
+  float theta = .0262;
+  if(animCounter % 60 == 59) theta *= -1;
+  float cosTheta = cos(theta);
+  float sinTheta = sin(theta);
+  float x1, y1;
+  for(int i = 0; i < NUM_TRIS; i++) {
+    //camera rotation normal to +Z
+    x1 = vertexes[3 * i + 0].x;
+    y1 = vertexes[3 * i + 0].y;
+    vertexes[3 * i + 0].x = cosTheta * x1 - sinTheta * y1;
+    vertexes[3 * i + 0].y = sinTheta * x1 + cosTheta * y1;
+
+    x1 = vertexes[3 * i + 1].x;
+    y1 = vertexes[3 * i + 1].y;
+    vertexes[3 * i + 1].x = cosTheta * x1 - sinTheta * y1;
+    vertexes[3 * i + 1].y = sinTheta * x1 + cosTheta * y1;
+
+    x1 = vertexes[3 * i + 2].x;
+    y1 = vertexes[3 * i + 2].y;
+    vertexes[3 * i + 2].x = cosTheta * x1 - sinTheta * y1;
+    vertexes[3 * i + 2].y = sinTheta * x1 + cosTheta * y1;
+  }
   //12 and 13
-  // vertexes[0 + 0].z += animCounter % 150 < 75 ? -.15 : .15;
-  // vertexes[0 + 1].z += animCounter % 150 < 75 ? -.15 : .15;
-  // vertexes[0 + 2].z += animCounter % 150 < 75 ? -.15 : .15;
-  // vertexes[3 + 0].z += animCounter % 150 < 75 ? -.15 : .15;
-  // vertexes[3 + 1].z += animCounter % 150 < 75 ? -.15 : .15;
-  // vertexes[3 + 2].z += animCounter % 150 < 75 ? -.15 : .15;
+  vertexes[0 + 0].z += animCounter % 150 < 75 ? -.15 : .15;
+  vertexes[0 + 1].z += animCounter % 150 < 75 ? -.15 : .15;
+  vertexes[0 + 2].z += animCounter % 150 < 75 ? -.15 : .15;
+  vertexes[3 + 0].z += animCounter % 150 < 75 ? -.15 : .15;
+  vertexes[3 + 1].z += animCounter % 150 < 75 ? -.15 : .15;
+  vertexes[3 + 2].z += animCounter % 150 < 75 ? -.15 : .15;
   animCounter++;
 }
 
@@ -435,13 +447,12 @@ void* mainLoop(void* in) {
   int frameCount = 0;
   long frameTime = 0, t = 0, avg = 0;
   while (1) {
-    t = timeInMilliseconds();
-    //XNextEvent(d, &e);
     if(XCheckMaskEvent(d, ExposureMask | KeyPressMask, &e)) {
       if (e.type == KeyPress) {
         break;
       }
     }
+    t = timeInMilliseconds();
     animate();
     setFarWhite();
     renderLoop();
