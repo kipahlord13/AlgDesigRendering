@@ -1,38 +1,54 @@
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.io.PrintWriter;
 
 public class GeneratePolys{
 
-  public int precision;
-  private Vector3[][] vectors;
-  private int dimension;
+  public static int precision = 1;
+  private static Vector3[][] vectors;
+  private static int dimension;
 
-  private ArrayList<Vector3> linePoints;
-  public Vector3[] meshVerts;
-  private int[] triangles;
+  private static ArrayList<Vector3> linePoints;
+  public static Vector3[] meshVerts;
+  private static int[] triangles;
 
   private static class Vector3 {
     float x, y, z;
     public Vector3(float x, float y, float z) {
       this.x = x; this.y = y; this.z = z;
     }
+    public String toString() {
+      return x + " " + y + " " + z + " ";
+    }
   }
 
-  public static void main(String[] args) {
+  public static void main(String[] args) throws Exception{
     dimension = 1 + (2 * precision);
-    mesh = new Mesh();
     vectors = new Vector3[dimension][dimension];
     graphPoints();
+
+
+    PrintWriter fileOut = new PrintWriter("meshVerts.txt");
+    for(Vector3 e : meshVerts) {
+      fileOut.println(e);
+    }
+    fileOut.close();
+    fileOut = new PrintWriter("triangles.txt");
+    for(int e : triangles) {
+      fileOut.println(e);
+    }
+    fileOut.close();
   }
 
-  float f(float x, float y) {
+  static float f(float x, float y) {
     return (float)Math.sin((x * x) + (y * y));
   }
 
-  private float findIteration() {
+  static private float findIteration() {
     return 10f / precision;
   }
 
-  void graphPoints() {
+  static void graphPoints() {
     float iteration = findIteration();
     int i, j = 0;
     //calculate all points
@@ -42,7 +58,7 @@ public class GeneratePolys{
         float value = f(x, y);
         //if (value > 10) value = 10;
         //if (value < -10) value = -10;
-        vectors[i, j] = new Vector3(x, value, y);
+        vectors[i][j] = new Vector3(x, y, value);
         i++;
       }
       j++;
@@ -53,11 +69,11 @@ public class GeneratePolys{
     //horizonal lines
     for(i = 0; i <= precision * 2 ; i++) {
       for(j = 0; j <= precision * 2; j++) {
-        linePoints.Add(vectors[i, j]);
+        linePoints.add(vectors[i][j]);
       }
       if (i++ == precision * 2) continue;
       for(j--; j >= 0; j--) {
-        linePoints.add(vectors[i, j]);
+        linePoints.add(vectors[i][j]);
       }
     }
 
@@ -65,11 +81,11 @@ public class GeneratePolys{
     //vertical lines
     for(j = precision * 2; j >= 0; j--) {
       for(i = precision * 2; i >= 0; i--) {
-        linePoints.add(vectors[i, j]);
+        linePoints.add(vectors[i][j]);
       }
       if (j-- == 0) continue;
       for (i++; i <= precision * 2; i++) {
-        linePoints.add(vectors[i, j]);
+        linePoints.add(vectors[i][j]);
       }
 
     }
@@ -78,10 +94,10 @@ public class GeneratePolys{
     meshVerts = new Vector3[4 * (dimension - 1) * (dimension - 1)];
     for(int x = 0; x < dimension - 1; x++) {
       for (int y = 0; y < dimension - 1; y++) {
-        meshVerts[4 * ((x * (dimension - 1)) + y)] = vectors[x, y];
-        meshVerts[4 * ((x * (dimension - 1)) + y) + 1] = vectors[x + 1, y];
-        meshVerts[4 * ((x * (dimension - 1)) + y) + 2] = vectors[x, y + 1];
-        meshVerts[4 * ((x * (dimension - 1)) + y) + 3] = vectors[x+ 1, y + 1];
+        meshVerts[4 * ((x * (dimension - 1)) + y)] = vectors[x][y];
+        meshVerts[4 * ((x * (dimension - 1)) + y) + 1] = vectors[x + 1][y];
+        meshVerts[4 * ((x * (dimension - 1)) + y) + 2] = vectors[x][y + 1];
+        meshVerts[4 * ((x * (dimension - 1)) + y) + 3] = vectors[x+ 1][y + 1];
       }
     }
 
