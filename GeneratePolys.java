@@ -1,10 +1,11 @@
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.io.PrintWriter;
+import java.util.Scanner;
 
 public class GeneratePolys{
 
-  public static int precision = 1;
+  public static int precision;
   private static Vector3[][] vectors;
   private static int dimension;
 
@@ -23,6 +24,8 @@ public class GeneratePolys{
   }
 
   public static void main(String[] args) throws Exception{
+    Scanner scIn = new Scanner(System.in);
+    precision = scIn.nextInt();
     dimension = 1 + (2 * precision);
     vectors = new Vector3[dimension][dimension];
     graphPoints();
@@ -41,7 +44,7 @@ public class GeneratePolys{
   }
 
   static float f(float x, float y) {
-    return (float)Math.sin((x * x) + (y * y));
+    return (float)Math.sin(((x * x) + (y * y)) / 16);
   }
 
   static private float findIteration() {

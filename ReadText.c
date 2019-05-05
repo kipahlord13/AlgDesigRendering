@@ -4,14 +4,19 @@
 int main() {
 
   FILE *file;
-  if((file = fopen("meshVerts.txt", "r")) == NULL) {
+  if((file = fopen("triangles.txt", "r")) == NULL) {
     printf("file not found");
     return 1;
   }
 
-  float firstF, secndF, thirdF;
-  while(fscanf(file, "%f %f %f", &firstF, &secndF, &thirdF) == 3) {
-    printf("hey bud I found these floats: %f %f %f\n", firstF, secndF, thirdF);
+  int row = 0;
+
+  int firstI;
+  while(fscanf(file, "%d", &firstI) == 1) {
+    printf("%d\n", (short int)firstI);
+    row++;
   }
-  return 0;
+
+
+  printf("found %d rows\n", row);
 }
