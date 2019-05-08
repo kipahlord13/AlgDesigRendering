@@ -8,6 +8,7 @@ public class GeneratePolys{
   public static int precision;
   private static Vector3[][] vectors;
   private static int dimension;
+  private static int whichF = -1;
 
   private static ArrayList<Vector3> linePoints;
   public static Vector3[] meshVerts;
@@ -24,19 +25,21 @@ public class GeneratePolys{
   }
 
   public static void main(String[] args) throws Exception{
+    System.out.println("Enter precision and then choose a fxn");
     Scanner scIn = new Scanner(System.in);
     precision = scIn.nextInt();
+    whichF = scIn.nextInt();
     dimension = 1 + (2 * precision);
     vectors = new Vector3[dimension][dimension];
     graphPoints();
 
 
-    PrintWriter fileOut = new PrintWriter("meshVerts.txt");
+    PrintWriter fileOut = new PrintWriter(whichF + "meshVerts.txt");
     for(Vector3 e : meshVerts) {
       fileOut.println(e);
     }
     fileOut.close();
-    fileOut = new PrintWriter("triangles.txt");
+    fileOut = new PrintWriter(whichF + "triangles.txt");
     for(int e : triangles) {
       fileOut.println(e);
     }
@@ -44,7 +47,14 @@ public class GeneratePolys{
   }
 
   static float f(float x, float y) {
-    return (float)Math.sin(((x * x) + (y * y)) / 16);
+    switch(whichF) {
+      case 0: return 1 / (x + 10.1f);
+      case 1: return 4 + ((.3f * x * x) / 4) - ((.3f * y * y) / 9);
+      case 2: return (float)Math.sqrt((200) - (x * x) - (y * y));
+      case 3: return (float)Math.sin(((x * x) + (y * y)) / 16);
+    }
+    return 0;
+
   }
 
   static private float findIteration() {
