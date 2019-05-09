@@ -243,11 +243,16 @@ int readPolyData() {
   planes = malloc(sizeof(Plane) * NUM_TRIS);
 
   FILE *file;
-  char fileName[16];
-  sprintf(fileName, "%dmeshVerts%d.txt", graphNo, precision);
+  char fileName[21];
+  sprintf(fileName, "data/%dmeshVerts%d.txt", graphNo, precision);
   if((file = fopen(fileName, "r")) == NULL) {
-    printf("verts not found");
-    return 1;
+    char cmd[24];
+    sprintf(cmd, "java GeneratePolys %d %d", precision, graphNo);
+    system(cmd);
+    if((file = fopen(fileName, "r")) == NULL) {
+      printf("verts not found");
+      return 1;
+    }
   }
   int row = 0;
   float firstF, secndF, thirdF;
@@ -264,7 +269,7 @@ int readPolyData() {
     vertexes[row].z = thirdF - 15;
     row++;
   }
-  sprintf(fileName, "%dtriangles%d.txt", graphNo, precision);
+  sprintf(fileName, "data/%dtriangles%d.txt", graphNo, precision);
   if((file = fopen(fileName, "r")) == NULL) {
     printf("tris not found");
     return 1;
@@ -497,7 +502,7 @@ void* mainLoop(void* in) {
       avg += frameTime;
       if(frameCount % 100 == 0) {
         printf("\t Avg: %ld  \tRender time: %ld\n", notXAvg / frameCount, notXAvg);
-        printf("\tTotal time: %ld\n", avg);
+        printf("\tTotal time: %ld\t\tAvg fps %.2f\n", avg, frameCount / (avg * .001));
       }
     }
   }

@@ -25,21 +25,26 @@ public class GeneratePolys{
   }
 
   public static void main(String[] args) throws Exception{
-    System.out.println("Enter precision and then choose a fxn");
-    Scanner scIn = new Scanner(System.in);
-    precision = scIn.nextInt();
-    whichF = scIn.nextInt();
+    if(args.length == 2) {
+      precision = Integer.parseInt(args[0]);
+      whichF = Integer.parseInt(args[1]);
+    } else {
+      System.out.println("Enter precision and then choose a fxn");
+      Scanner scIn = new Scanner(System.in);
+      precision = scIn.nextInt();
+      whichF = scIn.nextInt();
+    }
     dimension = 1 + (2 * precision);
     vectors = new Vector3[dimension][dimension];
     graphPoints();
 
 
-    PrintWriter fileOut = new PrintWriter(whichF + "meshVerts" + precision + ".txt");
+    PrintWriter fileOut = new PrintWriter("data/" + whichF + "meshVerts" + precision + ".txt");
     for(Vector3 e : meshVerts) {
       fileOut.println(e);
     }
     fileOut.close();
-    fileOut = new PrintWriter(whichF + "triangles" + precision + ".txt");
+    fileOut = new PrintWriter("data/" + whichF + "triangles" + precision + ".txt");
     for(int e : triangles) {
       fileOut.println(e);
     }
