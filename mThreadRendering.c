@@ -16,7 +16,7 @@
 #define SCREEN_WIDTH 600
 #define SCREEN_HEIGHT 600
 #define WHITE_PIXEL 16777215
-#define GRAPH_PRECISION 15
+#define GRAPH_PRECISION precision
 #define GRAPH_TRIS GRAPH_PRECISION * GRAPH_PRECISION * 16
 #define GRAPH_LOCS GRAPH_TRIS * 3
 #define NUM_TRIS GRAPH_TRIS
@@ -42,8 +42,9 @@ typedef struct {
   Point normalVector;
 } Plane;
 
-int precision;
 int graphNo;
+int precision;
+char graphString[3];
 
 pthread_t xdrawThread;
 pthread_mutex_t pixelLock;
@@ -89,42 +90,11 @@ float zBuf[SCREEN_HEIGHT][SCREEN_WIDTH];
 int tPixels[R_THREADS][SCREEN_HEIGHT][SCREEN_WIDTH];
 float tZBuf[R_THREADS][SCREEN_HEIGHT][SCREEN_WIDTH];
 
-// short int tris[NUM_TRIS * 3] = {
-//   0, 2, 1, 2, 3, 1,
-//   0, 1, 2, 2, 1, 3,
-//   4, 6, 5, 6, 7, 5,
-//   4, 5, 6, 6, 5, 7,
-//   8, 10, 9, 10, 11, 9,
-//   8, 9, 10, 10, 9, 11,
-//   12, 14, 13, 14, 15, 13,
-//   12, 13, 14, 14, 13, 15
-//
-// };
-//
-// Point vertexes[NUM_TRIS * 3] = {
-//   {-10.0, -10.0, -0.8732973},
-//   {-10.0, 0.0, -0.50636566},
-//   {0.0, -10.0, -0.50636566},
-//   {0.0, 0.0, 0.0},
-//   {0.0, -10.0, -0.50636566},
-//   {0.0, 0.0, 0.0},
-//   {10.0, -10.0, -0.8732973},
-//   {10.0, 0.0, -0.50636566},
-//   {-10.0, 0.0, -0.50636566},
-//   {-10.0, 10.0, -0.8732973},
-//   {0.0, 0.0, 0.0},
-//   {0.0, 10.0, -0.50636566},
-//   {0.0, 0.0, 0.0},
-//   {0.0, 10.0, -0.50636566},
-//   {10.0, 0.0, -0.50636566},
-//   {10.0, 10.0, -0.8732973},
-// };
+Point* vertexes;
 
-Point vertexes[GRAPH_TRIS];
+short int* tris;
 
-short int tris[GRAPH_LOCS];
-
-Plane planes[NUM_TRIS];
+Plane* planes;
 
 float uMin;
 float uMax;
@@ -266,9 +236,16 @@ int setupX11() {
 }
 
 int readPolyData() {
-  FILE *file;
+  vertexes = malloc(sizeof(Point) * GRAPH_TRIS);
 
-  if((file = fopen("meshVerts.txt", "r")) == NULL) {
+  tris = malloc(sizeof(short int) * GRAPH_LOCS);
+
+  planes = malloc(sizeof(Plane) * NUM_TRIS);
+
+  FILE *file;
+  char fileName[16];
+  sprintf(fileName, "%dmeshVerts%d.txt", graphNo, precision);
+  if((file = fopen(fileName, "r")) == NULL) {
     printf("verts not found");
     return 1;
   }
@@ -287,8 +264,8 @@ int readPolyData() {
     vertexes[row].z = thirdF - 15;
     row++;
   }
-
-  if((file = fopen("triangles.txt", "r")) == NULL) {
+  sprintf(fileName, "%dtriangles%d.txt", graphNo, precision);
+  if((file = fopen(fileName, "r")) == NULL) {
     printf("tris not found");
     return 1;
   }
@@ -474,7 +451,6 @@ void mergeBuffers() {
 }
 
 void* mainLoop(void* in) {
-  readPolyData();
   uMin = screenPoints[2].y;
   uMax = screenPoints[0].y;
   vMin = screenPoints[3].z;
@@ -563,7 +539,7 @@ int main(int argc, char* argv[]) {
   scanf("%d", &graphNo);
   printf("Choose a precision: ");
   scanf("%d", &precision);
-  printf("function is %d, precision is %d\n", graphNo, precision);
+  readPolyData();
   verbose = argc != 1;
   XInitThreads();
   setupX11();

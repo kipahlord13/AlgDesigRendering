@@ -34,12 +34,12 @@ public class GeneratePolys{
     graphPoints();
 
 
-    PrintWriter fileOut = new PrintWriter(whichF + "meshVerts.txt");
+    PrintWriter fileOut = new PrintWriter(whichF + "meshVerts" + precision + ".txt");
     for(Vector3 e : meshVerts) {
       fileOut.println(e);
     }
     fileOut.close();
-    fileOut = new PrintWriter(whichF + "triangles.txt");
+    fileOut = new PrintWriter(whichF + "triangles" + precision + ".txt");
     for(int e : triangles) {
       fileOut.println(e);
     }
